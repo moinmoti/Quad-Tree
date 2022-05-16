@@ -6,14 +6,14 @@ struct QuadTree {
 
     Node *root;
 
-    QuadTree(int, int, array<float, 4>, SplitType);
+    QuadTree(uint, Rect, Split);
     ~QuadTree();
 
     void bulkload(string, long);
     Info deleteQuery(Record);
     Info insertQuery(Record);
-    Info kNNQuery(array<float, 2>, int);
-    Info rangeQuery(array<float, 4>);
-    int size(map<string, double> &) const;
+    Info kNNQuery(Data, uint);
+    Info rangeQuery(Rect);
+    uint size(map<string, double> &) const;
     void snapshot() const;
 };

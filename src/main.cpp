@@ -35,17 +35,17 @@ void insertQuery(tuple<char, vector<float>, float> q, QuadTree *index, Stats &st
 }
 
 void knnQuery(tuple<char, vector<float>, float> q, QuadTree *index, Stats &stats) {
-    array<float, 2> p;
+    Data p;
     for (uint i = 0; i < p.size(); i++)
         p[i] = get<1>(q)[i];
-    int k = get<2>(q);
+    uint k = get<2>(q);
     Info info = index->kNNQuery(p, k);
     stats.knn[k].io += info.cost;
     stats.knn[k].count++;
 }
 
 void rangeQuery(tuple<char, vector<float>, float> q, QuadTree *index, Stats &stats) {
-    array<float, 4> query;
+    Rect query;
     for (uint i = 0; i < query.size(); i++)
         query[i] = get<1>(q)[i];
     float rs = get<2>(q);
@@ -154,12 +154,11 @@ int main(int argCount, char **args) {
     map<string, string> config;
     string projectPath = string(args[1]);
     string queryType = string(args[2]);
-    int fanout = stoi(string(args[3]));
-    int pageCap = stoi(string(args[4]));
+    int pageCap = stoi(string(args[3]));
     long limit = 1e8;
     /* string sign = "-I1e" + to_string(int(log10(insertions))) + "-" +
        to_string(fanout) + "-" + to_string(pageCap); */
-    string sign = "-" + to_string(fanout);
+    string sign = "-" + to_string(pageCap);
 
     string expPath = projectPath + "/Experiments/";
     string prefix = expPath + queryType + "/";
@@ -168,7 +167,7 @@ int main(int argCount, char **args) {
     /* string queryFile = projectPath + "/Data/OSM/Queries/" + queryType + ".txt";
     string dataFile = projectPath + "/Data/OSM/data-7e7.txt"; */
     // vector<int> fanout = {5, 10, 15, 20, 25, 50, 100, 150, 200};
-    array<float, 4> boundary{-180.0, -90.0, 180.0, 90.0};
+    Rect boundary{-180.0, -90.0, 180.0, 90.0};
 
     cout << "---Generation--- " << endl;
 
@@ -178,13 +177,12 @@ int main(int argCount, char **args) {
         cout << "Unable to open log.txt";
     // high_resolution_clock::time_point start = high_resolution_clock::now();
     cout << "Defining QuadTree..." << endl;
-    QuadTree index = QuadTree(pageCap, fanout, boundary, Spread);
+    QuadTree index = QuadTree(pageCap, boundary, Split::Cross);
     cout << "Bulkloading QuadTree..." << endl;
     index.bulkload(dataFile, limit);
     /* double hTreeCreationTime =
         duration_cast<microseconds>(high_resolution_clock::now() - start).count();
     log << "QuadTree Creation Time: " << hTreeCreationTime << endl; */
-    log << "Directory Capacity: " << fanout << endl;
     log << "Page Capacity: " << pageCap << endl;
     /* map<string, double> stats;
     float indexSize = index.size(stats);

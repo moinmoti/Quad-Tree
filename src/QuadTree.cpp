@@ -1,28 +1,15 @@
 #include "QuadTree.h"
 
-void printRect(string Rect, array<float, 4> r) {
-    cerr << Rect << ": " << r[0] << " | " << r[1] << " | " << r[2] << " | " << r[3] << endl;
+void printRect(string str, Rect r) {
+    cerr << str << ": " << r[0] << " | " << r[1] << " | " << r[2] << " | " << r[3] << endl;
 }
 
-QuadTree::QuadTree(int _pageCap, int _fanout, array<float, 4> _boundary, SplitType _splitType) {
-    Node::fanout = _fanout;
-    Node::pageCap = _pageCap;
-    Node::Split::type = _splitType;
+QuadTree::QuadTree(uint _capacity, Rect _boundary, Split _split) {
+    Page::capacity = _capacity;
+    Page::split = _split;
 
-    root = new Directory();
-    Directory *dRoot = static_cast<Directory *>(root);
-    dRoot->rect = _boundary;
-    dRoot->height = 1;
-    dRoot->splitDim = 1;
-    dRoot->contents = vector<Node *>();
-
-    Node *firstPage = new Page();
-    firstPage->rect = root->rect;
-    firstPage->height = 0;
-    firstPage->splitDim = 1;
-    static_cast<Page *>(firstPage)->points = vector<Record>();
-
-    dRoot->contents.emplace_back(firstPage);
+    root = new Page();
+    root->rect = _boundary;
 }
 
 QuadTree::~QuadTree() {}
@@ -32,8 +19,8 @@ void QuadTree::bulkload(string filename, long limit) {
     ifstream file(filename);
 
     int i = 0;
-    vector<Record> Points;
-    Points.reserve(limit);
+    Page *pRoot = static_cast<Page *>(root);
+    pRoot->points.reserve(limit);
     if (file.is_open()) {
         // getline(file, line);
         while (getline(file, line)) {
@@ -42,7 +29,7 @@ void QuadTree::bulkload(string filename, long limit) {
             istringstream buf(line);
             buf >> id >> lon >> lat;
             array pt{lon, lat};
-            Points.emplace_back(Record{.id = id, .data = pt});
+            pRoot->points.emplace_back(Record{.id = id, .data = pt});
             if (++i >= limit)
                 break;
         }
@@ -50,24 +37,20 @@ void QuadTree::bulkload(string filename, long limit) {
     } else
         cerr << "Data file " << filename << " not found!";
 
-    root = new Page(root);
-    Page *pRoot = static_cast<Page *>(root);
-
-    pRoot->points = Points;
     cout << "Initiate fission" << endl;
-    if (pRoot->points.size() > Node::pageCap)
+    if (pRoot->points.size() > Page::capacity)
         root = pRoot->fission();
 }
 
 Info QuadTree::deleteQuery(Record p) {
     Info info;
-    Node *node = root;
+    /* Node *node = root;
     while (node->height) {
-        auto cn = static_cast<Directory *>(node)->contents.begin();
+        auto cn = static_cast<Directory *>(node)->quartet.begin();
         while (!(*cn)->containsPt(p.data))
             cn++;
         node = *cn;
-    }
+    } */
     /* auto pt = find(all(node->points.value()), p);
     if (pt != node->points->end())
         node->points->erase(pt); */
@@ -76,69 +59,28 @@ Info QuadTree::deleteQuery(Record p) {
 
 Info QuadTree::insertQuery(Record p) {
     Info info;
-    info.cost = root->insert(root, p);
+    root = root->insert(p, info.cost);
     return info;
 }
 
-typedef struct knnPoint {
-    Record pt;
-    double dist = numeric_limits<double>::max();
-    bool operator<(const knnPoint &second) const { return dist < second.dist; }
-} knnPoint;
-
-typedef struct knnNode {
-    Node *sn;
-    double dist = numeric_limits<double>::max();
-    bool operator<(const knnNode &second) const { return dist > second.dist; }
-} knnNode;
-
-Info QuadTree::kNNQuery(array<float, 2> p, int k) {
+Info QuadTree::kNNQuery(Data p, uint k) {
     Info info;
     array query{p[0], p[1], p[0], p[1]};
 
-    vector<knnPoint> tempPts(k);
-    priority_queue<knnPoint, vector<knnPoint>> knnPts(all(tempPts));
-    auto calcSqrDist = [](array<float, 4> x, array<float, 2> y) {
-        return pow((x[0] - y[0]), 2) + pow((x[1] - y[1]), 2);
-    };
+    min_heap<Node::knnNode> unseenNodes;
+    vector<Node::knnPoint> tempPts(k);
+    max_heap<Node::knnPoint> knnPts(all(tempPts));
     Node *node = root;
-    priority_queue<knnNode, vector<knnNode>> unseenNodes;
-    unseenNodes.emplace(knnNode{node, node->minSqrDist(query)});
+    unseenNodes.emplace(Node::knnNode{node, node->minSqrDist(query)});
     double dist, minDist;
     while (!unseenNodes.empty()) {
         node = unseenNodes.top().sn;
         dist = unseenNodes.top().dist;
         unseenNodes.pop();
         minDist = knnPts.top().dist;
-        if (dist < minDist) {
-            if (node->height == 0) {
-                Page *pg = static_cast<Page *>(node);
-                for (auto p : pg->points) {
-                    minDist = knnPts.top().dist;
-                    dist = calcSqrDist(query, p.data);
-                    if (dist < minDist) {
-                        knnPoint kPt;
-                        kPt.pt = p;
-                        kPt.dist = dist;
-                        knnPts.pop();
-                        knnPts.push(kPt);
-                    }
-                }
-                info.cost++;
-            } else {
-                Directory *dir = static_cast<Directory *>(node);
-                minDist = knnPts.top().dist;
-                for (auto cn : dir->contents) {
-                    dist = cn->minSqrDist(query);
-                    if (dist < minDist) {
-                        knnNode kn;
-                        kn.sn = cn;
-                        kn.dist = dist;
-                        unseenNodes.push(kn);
-                    }
-                }
-            }
-        } else
+        if (dist < minDist)
+            info.cost += node->knnSearch(query, unseenNodes, knnPts);
+        else
             break;
     }
 
@@ -155,7 +97,7 @@ Info QuadTree::kNNQuery(array<float, 2> p, int k) {
     return info;
 }
 
-Info QuadTree::rangeQuery(array<float, 4> query) {
+Info QuadTree::rangeQuery(Rect query) {
     Info info;
     info.cost = root->range(info.output, query);
     /* int pointCount = info.output;
@@ -163,19 +105,20 @@ Info QuadTree::rangeQuery(array<float, 4> query) {
     return info;
 }
 
-int QuadTree::size(map<string, double> &stats) const {
-    int totalSize = 2 * sizeof(int);
-    int pageSize = 4 * sizeof(float) + sizeof(int) + sizeof(void *);
-    int directorySize = 4 * sizeof(float) + sizeof(int) + sizeof(void *);
+uint QuadTree::size(map<string, double> &stats) const {
+    uint totalSize = 2 * sizeof(uint);
+    uint pageSize = 4 * sizeof(float) + sizeof(uint) + sizeof(void *);
+    uint directorySize = 4 * sizeof(float) + sizeof(uint) + sizeof(void *);
     stack<Directory *> toVisit({static_cast<Directory *>(root)});
     Directory *dir;
     while (!toVisit.empty()) {
         dir = toVisit.top();
         toVisit.pop();
         stats["directories"]++;
-        for (auto cn : dir->contents) {
-            if (cn->height) {
-                toVisit.push(static_cast<Directory *>(cn));
+        for (auto cn : dir->quartet) {
+            Directory *dcn = dynamic_cast<Directory *>(cn);
+            if (dcn) {
+                toVisit.push(dcn);
             } else
                 stats["pages"]++;
         }
@@ -185,24 +128,36 @@ int QuadTree::size(map<string, double> &stats) const {
 }
 
 void QuadTree::snapshot() const {
-    string splitStr = (Node::Split::type == Cyclic)   ? "Cyclic"
-                      : (Node::Split::type == Spread) ? "Spread"
-                                                      : "Invalid";
+    string splitStr;
+    Split usedType = Page::split;
+    if (usedType == X)
+        splitStr = "X";
+    else if (usedType == Y)
+        splitStr = "Y";
+    else if (usedType == Orientation)
+        splitStr = "Orientation";
+    else if (usedType == Center)
+        splitStr = "Center";
+    else if (usedType == Cross)
+        splitStr = "Cross";
+    else
+        splitStr = "Invalid";
     ofstream log(splitStr + "-QuadTree.csv");
     stack<Directory *> toVisit({static_cast<Directory *>(root)});
     Directory *dir;
     while (!toVisit.empty()) {
         dir = toVisit.top();
         toVisit.pop();
-        log << dir->height << "," << dir->contents.size();
+        // log << dir->height << "," << dir->quartet.size();
         for (auto p : dir->rect)
             log << "," << p;
         log << endl;
-        for (auto cn : dir->contents) {
-            if (cn->height) {
-                toVisit.push(static_cast<Directory *>(cn));
+        for (auto cn : dir->quartet) {
+            Directory *dcn = dynamic_cast<Directory *>(cn);
+            if (dcn) {
+                toVisit.push(dcn);
             } else {
-                log << cn->height << "," << static_cast<Page *>(cn)->points.size();
+                log << 0 << "," << static_cast<Page *>(cn)->points.size();
                 for (auto p : cn->rect)
                     log << "," << p;
                 log << endl;

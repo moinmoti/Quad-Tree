@@ -1,11 +1,7 @@
 #include "Node.h"
 
-SplitType Node::Split::type;
-int Node::fanout;
-int Node::pageCap;
-
-int overlaps(array<float, 4> r, array<float, 2> p) {
-    for (int i = 0; i < D; i++) {
+bool overlaps(Rect r, Data p) {
+    for (uint i = 0; i < D; i++) {
         if (r[i] > p[i] || p[i] > r[i + D])
             return false;
     }
@@ -16,36 +12,34 @@ int overlaps(array<float, 4> r, array<float, 2> p) {
 // Node Methods
 /////////////////////////////////////////////////////////////////////////////////////////
 
-void printNode(string str, array<float, 4> r) {
+void printNode(string str, Rect r) {
     cerr << str << ": " << r[0] << " | " << r[1] << " | " << r[2] << " | " << r[3] << endl;
 }
 
-bool Node::overlap(array<float, 4> r) const {
-    for (int i = 0; i < D; i++)
+bool Node::overlap(Rect r) const {
+    for (uint i = 0; i < D; i++)
         if (rect[i] > r[i + D] || r[i] > rect[i + D])
             return false;
     return true;
 }
 
-bool Node::containsPt(array<float, 2> p) const {
+bool Node::containsPt(Data p) const {
     bool result = true;
-    for (int i = 0; i < D; i++)
+    for (uint i = 0; i < D; i++)
         result = result & (rect[i] <= p[i]) & (rect[i + D] >= p[i]);
     return result;
 }
 
-bool Node::inside(array<float, 4> r) const {
+bool Node::inside(Rect r) const {
     bool result = true;
-    for (int i = 0; i < D; i++)
+    for (uint i = 0; i < D; i++)
         result = result & (rect[i] >= r[i]) & (rect[i + D] <= r[i + D]);
     return result;
 }
 
-array<float, 2> Node::getCenter() const {
-    return array<float, 2>{(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2};
-}
+Data Node::getCenter() const { return Data{(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2}; }
 
-double Node::minSqrDist(array<float, 4> r) const {
+double Node::minSqrDist(Rect r) const {
     bool left = r[2] < rect[0];
     bool right = rect[2] < r[0];
     bool bottom = r[3] < rect[1];
@@ -71,14 +65,107 @@ double Node::minSqrDist(array<float, 4> r) const {
     return 0;
 }
 
-Node::Split *Node::getSplit() const {
+Node::~Node() {}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// Directory Methods
+/////////////////////////////////////////////////////////////////////////////////////////
+
+Directory::Directory() {}
+
+Directory::Directory(Node *pg, bool canDel) {
+    rect = pg->rect;
+    if (canDel)
+        delete pg;
+}
+
+Node *Directory::insert(Record p, uint &writes) {
+    for (auto &qn : quartet) {
+        if (qn->containsPt(p.data)) {
+            qn = qn->insert(p, writes);
+            break;
+        }
+    }
+    return this;
+}
+
+uint Directory::knnSearch(Rect query, min_heap<knnNode> &unseenNodes,
+                          max_heap<knnPoint> &knnPts) const {
+    double minDist = knnPts.top().dist;
+    for (auto cn : quartet) {
+        double dist = cn->minSqrDist(query);
+        if (dist < minDist) {
+            knnNode kn;
+            kn.sn = cn;
+            kn.dist = dist;
+            unseenNodes.push(kn);
+        }
+    }
+    return 0;
+}
+
+uint Directory::range(uint &pointCount, Rect query) const {
+    uint reads = 0;
+    for (auto qn : quartet) {
+        if (qn->overlap(query))
+            reads += qn->range(pointCount, query);
+    }
+    return reads;
+}
+
+uint Directory::size() const {
+    uint rectSize = sizeof(float) * 4;
+    uint typeSize = sizeof(vector<Node *>) + quartet.size() * sizeof(void *);
+    uint totalSize = typeSize + rectSize;
+    return totalSize;
+}
+
+Directory::~Directory() {
+    for (auto qn : quartet) {
+        delete qn;
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// Page Methods
+/////////////////////////////////////////////////////////////////////////////////////////
+
+uint Page::capacity;
+Split Page::split;
+
+Page::Page() {}
+
+Page::Page(Node *dir, bool canDel) {
+    rect = dir->rect;
+    if (canDel)
+        delete dir;
+}
+
+Node *Page::fission() {
+    uint writes = 0;
+    Node *node = new Directory(this, false);
+    Directory *dir = static_cast<Directory *>(node);
+    dir->quartet = partition(writes);
+    for (auto &cn : dir->quartet) {
+        Page *pg = static_cast<Page *>(cn);
+        if (pg->points.size() > capacity)
+            cn = pg->fission();
+    }
+    delete this;
+    return node;
+}
+
+Data Page::getSplit() const {
     bool axis;
-    vector<Record> allPoints = getPoints();
-    if (Split::type == Cyclic) {
-        axis = !splitDim;
-    } else if (Split::type == Spread) {
-        array<float, 2> low({180, 90}), high({-180, -90});
-        for (auto p : allPoints) {
+    if (split == X)
+        axis = false;
+    else if (split == Y)
+        axis = true;
+    else if (split == Orientation)
+        axis = (rect[2] - rect[0]) - (rect[3] - rect[1]);
+    if (split == Spread) {
+        Data low({180, 90}), high({-180, -90});
+        for (auto p : points) {
             if (p.data[0] < low[0])
                 low[0] = p.data[0];
             if (p.data[1] < low[1])
@@ -90,211 +177,89 @@ Node::Split *Node::getSplit() const {
         }
         axis = (high[0] - low[0]) < (high[1] - low[1]);
     } else {
-        cerr << "Error: Invalid TYPE!!!" << endl;
-        abort();
-    }
-    sort(all(allPoints),
-         [axis](const Record &l, const Record &r) { return l.data[axis] < r.data[axis]; });
-    Split *split = new Split();
-    split->axis = axis;
-    split->pt = allPoints[allPoints.size() / 2].data[axis];
-    return split;
-}
-
-Node::~Node() {}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-// Directory Methods
-/////////////////////////////////////////////////////////////////////////////////////////
-
-Directory::Directory() {}
-
-Directory::Directory(Node *pg, bool canDel) {
-    rect = pg->rect;
-    splitDim = pg->splitDim;
-    height = 1;
-    if (canDel)
-        delete pg;
-}
-
-vector<Record> Directory::getPoints() const {
-    vector<Record> allPoints;
-    for (auto cn : contents) {
-        vector<Record> tempPoints = cn->getPoints();
-        allPoints.insert(allPoints.end(), all(tempPoints));
-    }
-    return allPoints;
-}
-
-int Directory::insert(Node *pn, Record p) {
-    vector<Node *> newNodes;
-    auto cn = contents.begin();
-    while (!(*cn)->containsPt(p.data))
-        cn++;
-    int writes = (*cn)->insert(this, p);
-    if (contents.size() > fanout) {
-        Directory *dpn = static_cast<Directory *>(pn);
-        array<Node *, 2> newDirs = partition(writes);
-        if (pn->height == height) {
-            height++;
+        if (split == Center) {
+            return getCenter();
+        } else if (split == Cross) {
+            Data crossPt;
+            sort(all(points),
+                 [](const Record &l, const Record &r) { return l.data[0] < r.data[0]; });
+            crossPt[0] = points[points.size() / 2].data[0];
+            sort(all(points),
+                 [](const Record &l, const Record &r) { return l.data[1] < r.data[1]; });
+            crossPt[1] = points[points.size() / 2].data[1];
+            return crossPt;
         } else {
-            dpn->contents.erase(find(all(dpn->contents), this));
-            delete this;
+            cerr << "Error: Invalid TYPE!!!" << endl;
+            exit(EXIT_FAILURE);
         }
-        for (auto dir : newDirs)
-            dpn->contents.emplace_back(dir);
     }
-    return writes;
+    sort(all(points),
+         [axis](const Record &l, const Record &r) { return l.data[axis] < r.data[axis]; });
+    return points[points.size() / 2].data;
 }
 
-int Directory::range(int &pointCount, array<float, 4> query) const {
-    int reads = 0;
-    for (auto cn : contents) {
-        if (cn->overlap(query))
-            reads += cn->range(pointCount, query);
-    }
-    return reads;
-}
-
-int Directory::size() const {
-    int rectSize = sizeof(float) * 4;
-    int typeSize = sizeof(vector<Node *>) + contents.size() * sizeof(void *);
-    int totalSize = typeSize + rectSize;
-    return totalSize;
-}
-
-array<Node *, 2> Directory::partition(int &writes, Split *split) {
-    array<Node *, 2> dirs = {new Directory(), new Directory()};
-    if (split == NULL)
-        split = getSplit();
-    for (int i = 0; i < dirs.size(); i++) {
-        Directory *dir = static_cast<Directory *>(dirs[i]);
-        dir->height = height;
-        dir->rect = rect;
-        dir->rect[split->axis + !i * D] = split->pt;
-        dir->contents = vector<Node *>();
-        dir->splitDim = split->axis;
-    }
-
-    // Splitting contents
-    while (!contents.empty()) {
-        Node *cn = contents.front();
-        if (cn->rect[split->axis + D] <= split->pt)
-            static_cast<Directory *>(dirs[0])->contents.emplace_back(cn);
-        else if (cn->rect[split->axis] >= split->pt)
-            static_cast<Directory *>(dirs[1])->contents.emplace_back(cn);
-        else {
-            contents.erase(find(all(contents), cn));
-            array<Node *, 2> newNodes = cn->partition(writes, split);
-            for (auto nd : newNodes)
-                contents.emplace_back(nd);
-            delete cn;
-        }
-        contents.erase(contents.begin());
-    }
-
-    return dirs;
-}
-
-Directory::~Directory() {
-    for (auto cn : contents) {
-        delete cn;
-    }
-    contents.clear();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-// Page Methods
-/////////////////////////////////////////////////////////////////////////////////////////
-
-Page::Page() {}
-
-Page::Page(Node *dir, bool canDel) {
-    rect = dir->rect;
-    splitDim = dir->splitDim;
-    height = 0;
-    if (canDel)
-        delete dir;
-}
-
-Node *Page::fission() {
-    int writes = 0;
-    Node *node = new Directory(this, false);
-    node->height = log(points.size()) / log(pageCap);
-    uint N = ceil(points.size() / 2);
-    Directory *dir = static_cast<Directory *>(node);
-    array<Node *, 2> newPages = partition(writes);
-    for (auto pg : newPages)
-        dir->contents.emplace_back(pg);
-    for (; N > pageCap && dir->contents.size() <= fanout / 2; N = ceil(N / 2)) {
-        vector<Node *> pages;
-        for (auto cn : dir->contents) {
-            array<Node *, 2> newPages = cn->partition(writes);
-            for (auto pg : newPages)
-                pages.emplace_back(pg);
-            delete cn;
-        }
-        dir->contents = pages;
-    }
-    if (N > pageCap) {
-        for (auto &cn : dir->contents)
-            cn = static_cast<Page *>(cn)->fission();
-    }
-    delete this;
-    return node;
-}
-
-vector<Record> Page::getPoints() const { return points; }
-
-int Page::insert(Node *pn, Record p) {
-    int writes = 2;
+Node *Page::insert(Record p, uint &writes) {
     points.emplace_back(p);
-    if (points.size() > pageCap) {
-        Directory *dpn = static_cast<Directory *>(pn);
-        dpn->contents.erase(find(all(dpn->contents), this));
-        array<Node *, 2> newPages = partition(writes);
-        for (auto pg : newPages)
-            dpn->contents.emplace_back(pg);
+    if (points.size() > capacity) {
+        Node *node = new Directory(this, false);
+        Directory *dir = static_cast<Directory *>(node);
+        dir->quartet = partition(writes);
         delete this;
+        return node;
     }
-    return writes;
+    writes += 2;
+    return this;
 }
 
-array<Node *, 2> Page::partition(int &writes, Split *split) {
-    array<Node *, 2> pages = {new Page(), new Page()};
-    if (split == NULL)
-        split = getSplit();
-    for (int i = 0; i < pages.size(); i++) {
-        Page *page = static_cast<Page *>(pages[i]);
-        page->height = 0;
-        page->rect = rect;
-        page->rect[split->axis + !i * D] = split->pt;
-        page->points = vector<Record>();
-        page->splitDim = split->axis;
+uint Page::knnSearch(Rect query, min_heap<knnNode> &unseenNodes, max_heap<knnPoint> &knnPts) const {
+    auto calcSqrDist = [](Rect x, Data y) { return pow((x[0] - y[0]), 2) + pow((x[1] - y[1]), 2); };
+    for (auto p : points) {
+        double minDist = knnPts.top().dist;
+        double dist = calcSqrDist(query, p.data);
+        if (dist < minDist) {
+            knnPoint kPt;
+            kPt.pt = p;
+            kPt.dist = dist;
+            knnPts.pop();
+            knnPts.push(kPt);
+        }
+    }
+    return 1;
+}
+
+array<Node *, 4> Page::partition(uint &writes) {
+    array<Node *, 4> pages;
+    Data splitPt = getSplit();
+    for (uint i = 0; i < pages.size(); i++) {
+        pages[i] = new Page();
+        pages[i]->rect = rect;
+        bitset<D> b(i);
+        for (uint k = 0; k < D; k++)
+            pages[i]->rect[k + (!b[k]) * (1 << k)] = splitPt[k];
     }
 
     // Splitting points
-    Page *firstPage = static_cast<Page *>(pages[0]);
-    Page *secondPage = static_cast<Page *>(pages[1]);
     for (auto p : points) {
-        if (p.data[split->axis] < split->pt)
-            firstPage->points.emplace_back(p);
-        else if (p.data[split->axis] > split->pt)
-            secondPage->points.emplace_back(p);
-        else {
-            if (firstPage->points.size() < secondPage->points.size())
-                firstPage->points.emplace_back(p);
-            else
-                secondPage->points.emplace_back(p);
+        uint minCount = INT_MAX;
+        Page *container;
+        for (auto nd : pages) {
+            Page *pg = static_cast<Page *>(nd);
+            if (pg->containsPt(p.data)) {
+                if (minCount > pg->points.size()) {
+                    minCount = pg->points.size();
+                    container = pg;
+                }
+            }
         }
+        container->points.emplace_back(p);
     }
 
     points.clear();
-    writes = 3;
+    writes += 3;
     return pages;
 }
 
-int Page::range(int &pointCount, array<float, 4> query) const {
+uint Page::range(uint &pointCount, Rect query) const {
     if (inside(query))
         pointCount += points.size();
     else {
@@ -305,10 +270,10 @@ int Page::range(int &pointCount, array<float, 4> query) const {
     return 1;
 }
 
-int Page::size() const {
-    int rectSize = sizeof(float) * 4;
-    int typeSize = sizeof(vector<array<float, 2>>);
-    int totalSize = typeSize + rectSize;
+uint Page::size() const {
+    uint rectSize = sizeof(float) * 4;
+    uint typeSize = sizeof(vector<Data>);
+    uint totalSize = typeSize + rectSize;
     return totalSize;
 }
 
