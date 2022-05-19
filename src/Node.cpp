@@ -191,7 +191,11 @@ Point Page::getSplit() {
             exit(EXIT_FAILURE);
         }
     }
-    sort(all(entries), [axis](const Entry &l, const Entry &r) { return l.pt[axis] < r.pt[axis]; });
+    sort(all(entries), [axis](const Entry &l, const Entry &r) {
+        if (l.pt[axis] != r.pt[axis])
+            return l.pt[axis] < r.pt[axis];
+        return l.pt[!axis] < r.pt[!axis];
+    });
     return entries[entries.size() / 2].pt;
 }
 
