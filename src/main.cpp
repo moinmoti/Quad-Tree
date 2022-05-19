@@ -15,27 +15,27 @@ struct Stats {
 };
 
 void deleteQuery(tuple<char, vector<float>, float> q, QuadTree *index, Stats &stats) {
-    Record p;
-    for (uint i = 0; i < p.data.size(); i++)
-        p.data[i] = get<1>(q)[i];
-    p.id = get<2>(q);
-    Info info = index->deleteQuery(p);
+    Entry e;
+    for (uint i = 0; i < e.pt.size(); i++)
+        e.pt[i] = get<1>(q)[i];
+    e.id = get<2>(q);
+    Info info = index->deleteQuery(e);
     stats.del.io += info.cost;
     stats.del.count++;
 }
 
 void insertQuery(tuple<char, vector<float>, float> q, QuadTree *index, Stats &stats) {
-    Record p;
-    for (uint i = 0; i < p.data.size(); i++)
-        p.data[i] = get<1>(q)[i];
-    p.id = get<2>(q);
-    Info info = index->insertQuery(p);
+    Entry e;
+    for (uint i = 0; i < e.pt.size(); i++)
+        e.pt[i] = get<1>(q)[i];
+    e.id = get<2>(q);
+    Info info = index->insertQuery(e);
     stats.insert.io += info.cost;
     stats.insert.count++;
 }
 
 void knnQuery(tuple<char, vector<float>, float> q, QuadTree *index, Stats &stats) {
-    Data p;
+    Point p;
     for (uint i = 0; i < p.size(); i++)
         p[i] = get<1>(q)[i];
     uint k = get<2>(q);
@@ -162,10 +162,10 @@ int main(int argCount, char **args) {
 
     string expPath = projectPath + "/Experiments/";
     string prefix = expPath + queryType + "/";
-    string queryFile = projectPath + "/Data/AIS/Queries/" + queryType + ".txt";
-    string dataFile = projectPath + "/Data/AIS/ships1e8.txt";
-    /* string queryFile = projectPath + "/Data/OSM/Queries/" + queryType + ".txt";
-    string dataFile = projectPath + "/Data/OSM/data-7e7.txt"; */
+    string queryFile = projectPath + "/Point/AIS/Queries/" + queryType + ".txt";
+    string dataFile = projectPath + "/Point/AIS/ships1e8.txt";
+    /* string queryFile = projectPath + "/Point/OSM/Queries/" + queryType + ".txt";
+    string dataFile = projectPath + "/Point/OSM/data-7e7.txt"; */
     // vector<int> fanout = {5, 10, 15, 20, 25, 50, 100, 150, 200};
     Rect boundary{-180.0, -90.0, 180.0, 90.0};
 

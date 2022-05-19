@@ -20,7 +20,7 @@ void QuadTree::bulkload(string filename, long limit) {
 
     int i = 0;
     Page *pRoot = static_cast<Page *>(root);
-    pRoot->points.reserve(limit);
+    pRoot->entries.reserve(limit);
     if (file.is_open()) {
         // getline(file, line);
         while (getline(file, line)) {
@@ -29,20 +29,20 @@ void QuadTree::bulkload(string filename, long limit) {
             istringstream buf(line);
             buf >> id >> lon >> lat;
             array pt{lon, lat};
-            pRoot->points.emplace_back(Record{.id = id, .data = pt});
+            pRoot->entries.emplace_back(Entry{.id = id, .pt = pt});
             if (++i >= limit)
                 break;
         }
         file.close();
     } else
-        cerr << "Data file " << filename << " not found!";
+        cerr << "Point file " << filename << " not found!";
 
     cout << "Initiate fission" << endl;
-    if (pRoot->points.size() > Page::capacity)
+    if (pRoot->entries.size() > Page::capacity)
         root = pRoot->fission();
 }
 
-Info QuadTree::deleteQuery(Record p) {
+Info QuadTree::deleteQuery(Entry p) {
     Info info;
     /* Node *node = root;
     while (node->height) {
@@ -57,19 +57,19 @@ Info QuadTree::deleteQuery(Record p) {
     return info;
 }
 
-Info QuadTree::insertQuery(Record p) {
+Info QuadTree::insertQuery(Entry p) {
     Info info;
     root = root->insert(p, info.cost);
     return info;
 }
 
-Info QuadTree::kNNQuery(Data p, uint k) {
+Info QuadTree::kNNQuery(Point p, uint k) {
     Info info;
     array query{p[0], p[1], p[0], p[1]};
 
     min_heap<Node::knnNode> unseenNodes;
-    vector<Node::knnPoint> tempPts(k);
-    max_heap<Node::knnPoint> knnPts(all(tempPts));
+    vector<Node::knnEntry> tempPts(k);
+    max_heap<Node::knnEntry> knnPts(all(tempPts));
     Node *node = root;
     unseenNodes.emplace(Node::knnNode{node, node->minSqrDist(query)});
     double dist, minDist;
@@ -87,7 +87,7 @@ Info QuadTree::kNNQuery(Data p, uint k) {
     /* double sqrDist;
     if (k == 32) {
         while (!knnPts.empty()) {
-            Record pt = knnPts.top().pt;
+            Entry pt = knnPts.top().pt;
             sqrDist = knnPts.top().dist;
             knnPts.pop();
             trace(pt.id, sqrDist);
@@ -157,7 +157,7 @@ void QuadTree::snapshot() const {
             if (dcn) {
                 toVisit.push(dcn);
             } else {
-                log << 0 << "," << static_cast<Page *>(cn)->points.size();
+                log << 0 << "," << static_cast<Page *>(cn)->entries.size();
                 for (auto p : cn->rect)
                     log << "," << p;
                 log << endl;

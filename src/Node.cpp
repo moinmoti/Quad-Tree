@@ -1,6 +1,6 @@
 #include "Node.h"
 
-bool overlaps(Rect r, Data p) {
+bool overlaps(Rect r, Point p) {
     for (uint i = 0; i < D; i++) {
         if (r[i] > p[i] || p[i] > r[i + D])
             return false;
@@ -23,7 +23,7 @@ bool Node::overlap(Rect r) const {
     return true;
 }
 
-bool Node::containsPt(Data p) const {
+bool Node::containsPt(Point p) const {
     bool result = true;
     for (uint i = 0; i < D; i++)
         result = result & (rect[i] <= p[i]) & (rect[i + D] >= p[i]);
@@ -37,7 +37,7 @@ bool Node::inside(Rect r) const {
     return result;
 }
 
-Data Node::getCenter() const { return Data{(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2}; }
+Point Node::getCenter() const { return Point{(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2}; }
 
 double Node::minSqrDist(Rect r) const {
     bool left = r[2] < rect[0];
@@ -79,9 +79,9 @@ Directory::Directory(Node *pg, bool canDel) {
         delete pg;
 }
 
-Node *Directory::insert(Record p, uint &writes) {
+Node *Directory::insert(Entry p, uint &writes) {
     for (auto &qn : quartet) {
-        if (qn->containsPt(p.data)) {
+        if (qn->containsPt(p.pt)) {
             qn = qn->insert(p, writes);
             break;
         }
@@ -90,7 +90,7 @@ Node *Directory::insert(Record p, uint &writes) {
 }
 
 uint Directory::knnSearch(Rect query, min_heap<knnNode> &unseenNodes,
-                          max_heap<knnPoint> &knnPts) const {
+                          max_heap<knnEntry> &knnPts) const {
     double minDist = knnPts.top().dist;
     for (auto cn : quartet) {
         double dist = cn->minSqrDist(query);
@@ -148,14 +148,14 @@ Node *Page::fission() {
     dir->quartet = partition(writes);
     for (auto &cn : dir->quartet) {
         Page *pg = static_cast<Page *>(cn);
-        if (pg->points.size() > capacity)
+        if (pg->entries.size() > capacity)
             cn = pg->fission();
     }
     delete this;
     return node;
 }
 
-Data Page::getSplit() const {
+Point Page::getSplit() {
     bool axis;
     if (split == X)
         axis = false;
@@ -164,43 +164,40 @@ Data Page::getSplit() const {
     else if (split == Orientation)
         axis = (rect[2] - rect[0]) - (rect[3] - rect[1]);
     if (split == Spread) {
-        Data low({180, 90}), high({-180, -90});
-        for (auto p : points) {
-            if (p.data[0] < low[0])
-                low[0] = p.data[0];
-            if (p.data[1] < low[1])
-                low[1] = p.data[1];
-            if (p.data[0] > high[0])
-                high[0] = p.data[0];
-            if (p.data[1] > high[1])
-                high[1] = p.data[1];
+        Point low({180, 90}), high({-180, -90});
+        for (auto p : entries) {
+            if (p.pt[0] < low[0])
+                low[0] = p.pt[0];
+            if (p.pt[1] < low[1])
+                low[1] = p.pt[1];
+            if (p.pt[0] > high[0])
+                high[0] = p.pt[0];
+            if (p.pt[1] > high[1])
+                high[1] = p.pt[1];
         }
         axis = (high[0] - low[0]) < (high[1] - low[1]);
     } else {
         if (split == Center) {
             return getCenter();
         } else if (split == Cross) {
-            Data crossPt;
-            sort(all(points),
-                 [](const Record &l, const Record &r) { return l.data[0] < r.data[0]; });
-            crossPt[0] = points[points.size() / 2].data[0];
-            sort(all(points),
-                 [](const Record &l, const Record &r) { return l.data[1] < r.data[1]; });
-            crossPt[1] = points[points.size() / 2].data[1];
+            Point crossPt;
+            sort(all(entries), [](const Entry &l, const Entry &r) { return l.pt[0] < r.pt[0]; });
+            crossPt[0] = entries[entries.size() / 2].pt[0];
+            sort(all(entries), [](const Entry &l, const Entry &r) { return l.pt[1] < r.pt[1]; });
+            crossPt[1] = entries[entries.size() / 2].pt[1];
             return crossPt;
         } else {
             cerr << "Error: Invalid TYPE!!!" << endl;
             exit(EXIT_FAILURE);
         }
     }
-    sort(all(points),
-         [axis](const Record &l, const Record &r) { return l.data[axis] < r.data[axis]; });
-    return points[points.size() / 2].data;
+    sort(all(entries), [axis](const Entry &l, const Entry &r) { return l.pt[axis] < r.pt[axis]; });
+    return entries[entries.size() / 2].pt;
 }
 
-Node *Page::insert(Record p, uint &writes) {
-    points.emplace_back(p);
-    if (points.size() > capacity) {
+Node *Page::insert(Entry p, uint &writes) {
+    entries.emplace_back(p);
+    if (entries.size() > capacity) {
         Node *node = new Directory(this, false);
         Directory *dir = static_cast<Directory *>(node);
         dir->quartet = partition(writes);
@@ -211,17 +208,20 @@ Node *Page::insert(Record p, uint &writes) {
     return this;
 }
 
-uint Page::knnSearch(Rect query, min_heap<knnNode> &unseenNodes, max_heap<knnPoint> &knnPts) const {
-    auto calcSqrDist = [](Rect x, Data y) { return pow((x[0] - y[0]), 2) + pow((x[1] - y[1]), 2); };
-    for (auto p : points) {
-        double minDist = knnPts.top().dist;
-        double dist = calcSqrDist(query, p.data);
+uint Page::knnSearch(Rect query, min_heap<knnNode> &unseenNodes,
+                     max_heap<knnEntry> &knnEnts) const {
+    auto calcSqrDist = [](Rect x, Point y) {
+        return pow((x[0] - y[0]), 2) + pow((x[1] - y[1]), 2);
+    };
+    for (auto e : entries) {
+        double minDist = knnEnts.top().dist;
+        double dist = calcSqrDist(query, e.pt);
         if (dist < minDist) {
-            knnPoint kPt;
-            kPt.pt = p;
-            kPt.dist = dist;
-            knnPts.pop();
-            knnPts.push(kPt);
+            knnEntry kEnt;
+            kEnt.pt = e;
+            kEnt.dist = dist;
+            knnEnts.pop();
+            knnEnts.push(kEnt);
         }
     }
     return 1;
@@ -229,7 +229,7 @@ uint Page::knnSearch(Rect query, min_heap<knnNode> &unseenNodes, max_heap<knnPoi
 
 array<Node *, 4> Page::partition(uint &writes) {
     array<Node *, 4> pages;
-    Data splitPt = getSplit();
+    Point splitPt = getSplit();
     for (uint i = 0; i < pages.size(); i++) {
         pages[i] = new Page();
         pages[i]->rect = rect;
@@ -239,42 +239,42 @@ array<Node *, 4> Page::partition(uint &writes) {
     }
 
     // Splitting points
-    for (auto p : points) {
+    for (auto e : entries) {
         uint minCount = INT_MAX;
         Page *container;
         for (auto nd : pages) {
             Page *pg = static_cast<Page *>(nd);
-            if (pg->containsPt(p.data)) {
-                if (minCount > pg->points.size()) {
-                    minCount = pg->points.size();
+            if (pg->containsPt(e.pt)) {
+                if (minCount > pg->entries.size()) {
+                    minCount = pg->entries.size();
                     container = pg;
                 }
             }
         }
-        container->points.emplace_back(p);
+        container->entries.emplace_back(e);
     }
 
-    points.clear();
+    entries.clear();
     writes += 3;
     return pages;
 }
 
-uint Page::range(uint &pointCount, Rect query) const {
+uint Page::range(uint &count, Rect query) const {
     if (inside(query))
-        pointCount += points.size();
+        count += entries.size();
     else {
-        for (auto p : points)
-            if (overlaps(query, p.data))
-                pointCount++;
+        for (auto e : entries)
+            if (overlaps(query, e.pt))
+                count++;
     }
     return 1;
 }
 
 uint Page::size() const {
     uint rectSize = sizeof(float) * 4;
-    uint typeSize = sizeof(vector<Data>);
+    uint typeSize = sizeof(vector<Point>);
     uint totalSize = typeSize + rectSize;
     return totalSize;
 }
 
-Page::~Page() { points.clear(); }
+Page::~Page() { entries.clear(); }

@@ -4,10 +4,10 @@
 
 struct Node {
 
-    struct knnPoint {
-        Record pt;
+    struct knnEntry {
+        Entry pt;
         double dist = numeric_limits<double>::max();
-        bool operator<(const knnPoint &second) const { return dist < second.dist; }
+        bool operator<(const knnEntry &second) const { return dist < second.dist; }
     };
 
     struct knnNode {
@@ -19,14 +19,14 @@ struct Node {
     Rect rect; // xlow, ylow, xhigh, yhigh
 
     // Rect methods
-    bool containsPt(Data p) const;
-    Data getCenter() const;
+    bool containsPt(Point p) const;
+    Point getCenter() const;
     bool inside(Rect) const;
     double minSqrDist(Rect) const;
     bool overlap(Rect) const;
 
-    virtual Node* insert(Record, uint &) = 0;
-    virtual uint knnSearch(Rect, min_heap<knnNode> &, max_heap<knnPoint> &) const = 0;
+    virtual Node* insert(Entry, uint &) = 0;
+    virtual uint knnSearch(Rect, min_heap<knnNode> &, max_heap<knnEntry> &) const = 0;
     virtual uint range(uint &, Rect query) const = 0;
     virtual uint size() const = 0;
 
@@ -39,8 +39,8 @@ struct Directory: Node {
     Directory();
     explicit Directory(Node *, bool = true);
 
-    Node* insert(Record, uint &);
-    uint knnSearch(Rect, min_heap<knnNode> &, max_heap<knnPoint> &) const;
+    Node* insert(Entry, uint &);
+    uint knnSearch(Rect, min_heap<knnNode> &, max_heap<knnEntry> &) const;
     uint range(uint &, Rect query) const;
     uint size() const;
 
@@ -50,15 +50,15 @@ struct Directory: Node {
 struct Page: Node {
     static uint capacity;
     static Split split;
-    vector<Record> points;
+    vector<Entry> entries;
 
     Page();
     explicit Page(Node *, bool = true);
 
     Node* fission();
-    Data getSplit() const;
-    Node* insert(Record, uint &);
-    uint knnSearch(Rect, min_heap<knnNode> &, max_heap<knnPoint> &) const;
+    Point getSplit();
+    Node* insert(Entry, uint &);
+    uint knnSearch(Rect, min_heap<knnNode> &, max_heap<knnEntry> &) const;
     array<Node*, 4> partition(uint &);
     uint range(uint &, Rect) const;
     uint size() const;
