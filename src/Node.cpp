@@ -104,11 +104,11 @@ uint Directory::knnSearch(Rect query, min_heap<knnNode> &unseenNodes,
     return 0;
 }
 
-uint Directory::range(uint &pointCount, Rect query) const {
+uint Directory::range(uint &count, Rect query) const {
     uint reads = 0;
     for (auto qn : quartet) {
         if (qn->overlap(query))
-            reads += qn->range(pointCount, query);
+            reads += qn->range(count, query);
     }
     return reads;
 }
