@@ -250,10 +250,8 @@ array<Node *, 4> Page::partition(uint &writes) {
         pages[i] = new Page();
         pages[i]->rect = rect;
         bitset<D> b(i);
-        for (uint d = 0; d < D; d++) {
-            pages[i]->rect[d] = max(pages[i]->rect[d], splitPt[d]);
-            pages[i]->rect[d + D] = min(pages[i]->rect[d + D], splitPt[d]);
-        }
+        for (uint k = 0; k < D; k++)
+            pages[i]->rect[k + (!b[k]) * (1 << k)] = splitPt[k];
     }
 
     // Splitting points
