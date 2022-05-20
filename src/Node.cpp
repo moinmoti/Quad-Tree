@@ -90,8 +90,8 @@ Node *Directory::insert(Entry p, uint &writes) {
 }
 
 uint Directory::knnSearch(
-    Rect query, min_heap<knnNode> &unseenNodes, max_heap<knnEntry> &knnPts) const {
-    double minDist = knnPts.top().dist;
+    Rect query, min_heap<knnNode> &unseenNodes, max_heap<knnEntry> &knnEnts) const {
+    double minDist = knnEnts.top().dist;
     for (auto cn : quartet) {
         double dist = cn->minSqrDist(query);
         if (dist < minDist) {
