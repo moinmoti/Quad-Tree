@@ -170,12 +170,12 @@ Node *Page::fission() {
 Point Page::getSplit() {
     bool axis;
     if (split == X)
-        axis = false;
+        axis = 0;
     else if (split == Y)
-        axis = true;
+        axis = 1;
     else if (split == Orientation)
         axis = (rect[2] - rect[0]) - (rect[3] - rect[1]);
-    if (split == Spread) {
+    else if (split == Spread) {
         Point low({180, 90}), high({-180, -90});
         for (auto p : entries) {
             if (p.pt[0] < low[0])

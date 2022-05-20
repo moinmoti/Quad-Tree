@@ -162,8 +162,8 @@ int main(int argCount, char **args) {
 
     string expPath = projectPath + "/Experiments/";
     string prefix = expPath + queryType + "/";
-    string queryFile = projectPath + "/Point/AIS/Queries/" + queryType + ".txt";
-    string dataFile = projectPath + "/Point/AIS/ships1e8.txt";
+    string queryFile = projectPath + "/Data/AIS/Queries/" + queryType + ".txt";
+    string dataFile = projectPath + "/Data/AIS/ships1e8.txt";
     /* string queryFile = projectPath + "/Point/OSM/Queries/" + queryType + ".txt";
     string dataFile = projectPath + "/Point/OSM/data-7e7.txt"; */
     Rect boundary{-180.0, -90.0, 180.0, 90.0};
@@ -176,7 +176,7 @@ int main(int argCount, char **args) {
         cout << "Unable to open log.txt";
     // high_resolution_clock::time_point start = high_resolution_clock::now();
     cout << "Defining QuadTree..." << endl;
-    QuadTree index = QuadTree(pageCap, boundary, Split::Cross);
+    QuadTree index = QuadTree(pageCap, boundary, Split::X);
     cout << "Bulkloading QuadTree..." << endl;
     index.bulkload(dataFile, limit);
     /* double hTreeCreationTime =

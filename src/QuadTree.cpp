@@ -68,8 +68,8 @@ Info QuadTree::kNNQuery(Point p, uint k) {
     array query{p[0], p[1], p[0], p[1]};
 
     min_heap<Node::knnNode> unseenNodes;
-    vector<Node::knnEntry> tempPts(k);
-    max_heap<Node::knnEntry> knnPts(all(tempPts));
+    vector<Node::knnEntry> tempEnts(k);
+    max_heap<Node::knnEntry> knnEnts(all(tempEnts));
     Node *node = root;
     unseenNodes.emplace(Node::knnNode{node, node->minSqrDist(query)});
     double dist, minDist;
@@ -77,19 +77,19 @@ Info QuadTree::kNNQuery(Point p, uint k) {
         node = unseenNodes.top().sn;
         dist = unseenNodes.top().dist;
         unseenNodes.pop();
-        minDist = knnPts.top().dist;
+        minDist = knnEnts.top().dist;
         if (dist < minDist)
-            info.cost += node->knnSearch(query, unseenNodes, knnPts);
+            info.cost += node->knnSearch(query, unseenNodes, knnEnts);
         else
             break;
     }
 
     /* double sqrDist;
     if (k == 32) {
-        while (!knnPts.empty()) {
-            Entry pt = knnPts.top().pt;
-            sqrDist = knnPts.top().dist;
-            knnPts.pop();
+        while (!knnEnts.empty()) {
+            Entry pt = knnEnts.top().pt;
+            sqrDist = knnEnts.top().dist;
+            knnEnts.pop();
             trace(pt.id, sqrDist);
         }
         cerr << endl;
