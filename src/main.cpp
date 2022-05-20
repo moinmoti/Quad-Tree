@@ -166,7 +166,6 @@ int main(int argCount, char **args) {
     string dataFile = projectPath + "/Point/AIS/ships1e8.txt";
     /* string queryFile = projectPath + "/Point/OSM/Queries/" + queryType + ".txt";
     string dataFile = projectPath + "/Point/OSM/data-7e7.txt"; */
-    // vector<int> fanout = {5, 10, 15, 20, 25, 50, 100, 150, 200};
     Rect boundary{-180.0, -90.0, 180.0, 90.0};
 
     cout << "---Generation--- " << endl;
@@ -184,12 +183,11 @@ int main(int argCount, char **args) {
         duration_cast<microseconds>(high_resolution_clock::now() - start).count();
     log << "QuadTree Creation Time: " << hTreeCreationTime << endl; */
     log << "Page Capacity: " << pageCap << endl;
-    /* map<string, double> stats;
-    float indexSize = index.size(stats);
+    /* array<uint, 2> info;
+    float indexSize = index->size(info);
     log << "QuadTree size in MB: " << float(indexSize / 1e6) << endl;
-    // index.snapshot();
-    log << "No. of pages: " << stats["pages"] << endl;
-    log << "No. of directories: " << stats["directories"] << endl; */
+    log << "No. of directories: " << info[0] << endl;
+    log << "No. of pages: " << info[1] << endl; */
 
     cout << "---Evaluation--- " << endl;
     evaluate(&index, queryFile, logFile);
