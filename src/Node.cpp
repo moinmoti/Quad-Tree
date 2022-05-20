@@ -89,8 +89,8 @@ Node *Directory::insert(Entry p, uint &writes) {
     return this;
 }
 
-uint Directory::knnSearch(
-    Rect query, min_heap<knnNode> &unseenNodes, max_heap<knnEntry> &knnEnts) const {
+uint Directory::knnSearch(Rect query, min_heap<knnNode> &unseenNodes,
+    max_heap<knnEntry> &knnEnts) const {
     double minDist = knnEnts.top().dist;
     for (auto cn : quartet) {
         double dist = cn->minSqrDist(query);
@@ -224,8 +224,8 @@ Node *Page::insert(Entry p, uint &writes) {
     return this;
 }
 
-uint Page::knnSearch(
-    Rect query, min_heap<knnNode> &unseenNodes, max_heap<knnEntry> &knnEnts) const {
+uint Page::knnSearch(Rect query, min_heap<knnNode> &unseenNodes,
+    max_heap<knnEntry> &knnEnts) const {
     auto calcSqrDist = [](Rect x, Point y) {
         return pow((x[0] - y[0]), 2) + pow((x[1] - y[1]), 2);
     };
@@ -251,7 +251,7 @@ array<Node *, 4> Page::partition(uint &writes) {
         pages[i]->rect = rect;
         bitset<D> b(i);
         for (uint k = 0; k < D; k++)
-            pages[i]->rect[k + (!b[k]) * (1 << k)] = splitPt[k];
+            pages[i]->rect[k + (!b[k]) * D] = splitPt[k];
     }
 
     // Splitting points
