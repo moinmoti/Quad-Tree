@@ -29,7 +29,7 @@ struct Node {
     virtual uint knnSearch(Rect, min_heap<knnNode> &, max_heap<knnEntry> &) const = 0;
     virtual uint range(uint &, Rect query) const = 0;
     virtual uint size(array<uint, 2> &) const = 0;
-    virtual uint snapshot(ofstream &) const = 0;
+    virtual void snapshot(ofstream &) const = 0;
 
     virtual ~Node() = 0;
 };
@@ -44,7 +44,7 @@ struct Directory: Node {
     uint knnSearch(Rect, min_heap<knnNode> &, max_heap<knnEntry> &) const;
     uint range(uint &, Rect query) const;
     uint size(array<uint, 2> &) const;
-    uint snapshot(ofstream &) const;
+    void snapshot(ofstream &) const;
 
     ~Directory();
 };
@@ -64,7 +64,7 @@ struct Page: Node {
     array<Node*, 4> partition(uint &);
     uint range(uint &, Rect) const;
     uint size(array<uint, 2> &) const;
-    uint snapshot(ofstream &) const;
+    void snapshot(ofstream &) const;
 
     ~Page();
 };

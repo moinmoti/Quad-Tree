@@ -121,15 +121,9 @@ uint Directory::size(array<uint, 2> &stats) const {
     return totalSize;
 }
 
-uint Directory::snapshot(ofstream &ofs) const {
-    uint height = 0;
+void Directory::snapshot(ofstream &ofs) const {
     for (auto qn : quartet)
-        height = max(height, qn->snapshot(ofs) + 1);
-    ofs << height << "," << quartet.size();
-    for (auto c : rect)
-        ofs << "," << c;
-    ofs << endl;
-    return height;
+        qn->snapshot(ofs);
 }
 
 Directory::~Directory() {
@@ -291,12 +285,11 @@ uint Page::size(array<uint, 2> &stats) const {
     return 4 * sizeof(float) + sizeof(uint) + sizeof(void *);
 }
 
-uint Page::snapshot(ofstream &ofs) const {
+void Page::snapshot(ofstream &ofs) const {
     ofs << 0 << "," << entries.size();
     for (auto c : rect)
         ofs << "," << c;
     ofs << endl;
-    return 0;
 }
 
 Page::~Page() { entries.clear(); }
