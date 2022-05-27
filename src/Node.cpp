@@ -1,4 +1,4 @@
-#include "Node.h"
+#include "Node.hpp"
 
 bool overlaps(Rect r, Point p) {
     for (uint i = 0; i < D; i++) {

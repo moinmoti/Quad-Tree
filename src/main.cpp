@@ -1,4 +1,4 @@
-#include "QuadTree.h"
+#include "QuadTree.hpp"
 
 struct Stats {
     struct StatType {

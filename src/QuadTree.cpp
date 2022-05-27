@@ -1,4 +1,4 @@
-#include "QuadTree.h"
+#include "QuadTree.hpp"
 
 void printRect(string str, Rect r) {
     cerr << str << ": " << r[0] << " | " << r[1] << " | " << r[2] << " | " << r[3] << endl;
