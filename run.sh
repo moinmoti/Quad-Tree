@@ -1,4 +1,7 @@
 meson compile -C build
+Dataset=AIS
+ln -sf ../DATA/${Dataset}/Queries .
+ln -sf ../DATA/${Dataset}/fullData.txt dataFile.txt
 # Q=(Knn Rng)
 # T=(T)
 # W=(W E R)
