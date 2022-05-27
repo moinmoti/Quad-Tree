@@ -1,12 +1,9 @@
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
-import sys
-from pathlib import Path
+import plotly.graph_objects as go
 
 height = 0
 nodes = []
-filename = sys.argv[1]
-with open(filename) as f:
+tolerance = []
+with open("Snapshots/Waffle.csv") as f:
     for i, line in enumerate(f):
         if int(line.split(",")[0]) == height:
             nodes.append(
@@ -17,41 +14,81 @@ with open(filename) as f:
                     float(line.split(",")[5]),
                 )
             )
-        # if i == 10000: break
 
+fig = go.Figure()
 
-# Create figure and axes
-fig, ax = plt.subplots(1)
-fig.set_figheight(8)
-fig.set_figwidth(16)
-axes = plt.gca()
-axes.set_xlim([-180, 180])
-axes.set_ylim([-90, 90])
+# Set axes properties
+fig.update_xaxes(
+    range=[-200, 200],
+    showgrid=False,
+    zeroline=False,
+    mirror=True,
+    ticks="outside",
+    showline=True,
+    linecolor="black",
+)
+fig.update_yaxes(
+    range=[-100, 100],
+    showgrid=False,
+    zeroline=False,
+    mirror=True,
+    ticks="outside",
+    showline=True,
+    linecolor="black",
+)
 
-# Create a Rectangle patch
+perimeter = 0
 
-for l in nodes:
-    rect = patches.Rectangle(
-        (l[0], l[1]),
-        l[2] - l[0],
-        l[3] - l[1],
-        linewidth=1,
-        edgecolor="black",
-        facecolor="none",
+# Add shapes
+for n in nodes:
+    fig.add_trace(
+        go.Scatter(
+            mode="lines",
+            x=[n[0], n[0], n[2], n[2], n[0]],
+            y=[n[1], n[3], n[3], n[1], n[1]],
+            line=dict(color="black", width=0.25),
+        )
     )
-    ax.add_patch(rect)
+    perimeter += 2 * ((n[2] - n[0]) + (n[3] - n[1]))
 
-# points = {}
-# with open('/home/dinosar/rd/learned-indexes/experiments_classification/experiment_0/trainingData.csv') as f:
-#   for i, line in enumerate(f):
-#      if int(line.split(',')[0]) == 0:
-#            if int(line.split(',')[4]) not in points:
-#                points[int(line.split(',')[4])] = []
-#           x = float(line.split(',')[2])*360-180
-#          y = float(line.split(',')[3])*180-90
-#           points[int(line.split(',')[4])].append((x,y))
+numNodes = len(nodes)
+avgLen = perimeter / numNodes
+avgCardinality = 1e7 / numNodes
+print(
+    f"Total Number of Nodes: {numNodes}\nAverage Perimeter: {avgLen:.2f}\nAverage Cardinality: {avgCardinality:.2f}"
+)
 
-# for model in points:
-#   ax.scatter([x[0] for x in points[model]], [y[1] for y in points[model]], color=(r.uniform(0,1),r.uniform(0,1),r.uniform(0,1)), alpha = 1, s = 0.5)
+""" fig.add_trace(
+    go.Scatter(
+        x=[None],
+        y=[None],
+        mode="markers",
+        marker=dict(
+            cmin=0,
+            cmax=1,
+            colorscale=[[0, "rgba(255,143,0,0)"], [1, "rgba(255,143,0,1)"]],
+            showscale=True,
+            colorbar=dict(
+                title="Node tolerance",
+                tickvals=[0, meanTol, 1],
+                ticktext=[
+                    str(minTol) + " (Min)",
+                    str(meanTol) + " (Mean)",
+                    str(maxTol) + " (Max)",
+                ],
+                ticks="outside",
+            ),
+        ),
+    )
+) """
 
-plt.savefig("Snapshots/" + Path(filename).stem + "-" + str(height) + ".png")
+# fig.update_shapes(dict(xref='x', yref='y', line=dict(color="black")))
+fig.update_layout(
+    showlegend=False,
+    # title="Tolerance map at height=0 for 1:1 read-write workload",
+    xaxis_title="Longitude",
+    yaxis_title="Latitude",
+    font_size=6,
+    plot_bgcolor="white",
+)
+fig.write_image(file="Snapshots/Waffle.pdf")
