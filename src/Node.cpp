@@ -270,12 +270,14 @@ array<Node *, 4> Page::partition(uint &writes) {
 }
 
 uint Page::range(uint &count, Rect query) const {
-    if (inside(query))
-        count += entries.size();
-    else {
-        for (auto e : entries)
-            if (overlaps(query, e.pt))
-                count++;
+    if constexpr (LOG) {
+        if (inside(query))
+            count += entries.size();
+        else {
+            for (auto e : entries)
+                if (overlaps(query, e.pt))
+                    count++;
+        }
     }
     return 1;
 }

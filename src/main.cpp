@@ -4,7 +4,6 @@ struct Stats {
     struct StatType {
         long count = 0;
         long io = 0;
-        // long time = 0;
     };
 
     StatType del;
@@ -109,7 +108,6 @@ void evaluate(QuadTree *index, string queryFile, string logFile) {
                 for (auto &l : stats.range) {
                     log << setw(8) << l.first << setw(8) << l.second.count << setw(8)
                         << roundit(l.second.io / double(l.second.count)) << endl;
-                    // << roundit(l.second.time / double(l.second.count)) << endl;
                 }
 
                 log << endl << "------------------KNN Queries-------------------" << endl;
@@ -118,14 +116,11 @@ void evaluate(QuadTree *index, string queryFile, string logFile) {
                 for (auto &l : stats.knn) {
                     log << setw(8) << l.first << setw(8) << l.second.count << setw(8)
                         << roundit(l.second.io / double(l.second.count)) << endl;
-                    // << roundit(l.second.time / double(l.second.count)) << endl;
                 }
 
                 log << endl << "------------------Insert Queries-------------------" << endl;
                 log << "Count:\t" << stats.insert.count << endl;
                 log << "I/O:\t" << stats.insert.io / double(stats.insert.count) << endl;
-                // log << "Time: \t" << stats.insert.time / double(stats.insert.count) << endl <<
-                // endl;
 
                 log << endl << "------------------ Reloading -------------------" << endl;
                 log << "Count:\t" << stats.reload.count << endl;
@@ -142,31 +137,23 @@ void evaluate(QuadTree *index, string queryFile, string logFile) {
                 log.close();
             } else
                 cerr << "Invalid Query!!!" << endl;
-            // cerr << endl;
         }
         file.close();
     }
     cout << "Finish Querying..." << endl;
 }
 
-// main with arguments to be called by python wrapper
 int main(int argCount, char **args) {
     map<string, string> config;
     string projectPath = string(args[1]);
     string queryType = string(args[2]);
     int pageCap = stoi(string(args[3]));
-    long limit = 1e8;
-    /* string sign = "-I1e" + to_string(int(log10(insertions))) + "-" +
-       to_string(fanout) + "-" + to_string(pageCap); */
     string sign = "-" + to_string(pageCap);
 
     string expPath = projectPath + "/Experiments/";
     string prefix = expPath + queryType + "/";
-    string queryFile = projectPath + "/Data/AIS/Queries/" + queryType + ".txt";
-    string dataFile = projectPath + "/Data/AIS/ships1e8.txt";
-    /* string queryFile = projectPath + "/Point/OSM/Queries/" + queryType + ".txt";
-    string dataFile = projectPath + "/Point/OSM/data-7e7.txt"; */
-    Rect boundary{-180.0, -90.0, 180.0, 90.0};
+    string queryFile = projectPath + "/Queries/" + queryType + ".txt";
+    string dataFile = projectPath + "/dataFile.txt";
 
     cout << "---Generation--- " << endl;
 
@@ -174,23 +161,20 @@ int main(int argCount, char **args) {
     ofstream log(logFile);
     if (!log.is_open())
         cout << "Unable to open log.txt";
-    // high_resolution_clock::time_point start = high_resolution_clock::now();
     cout << "Defining QuadTree..." << endl;
+    Rect boundary{-180.0, -90.0, 180.0, 90.0};
     QuadTree index = QuadTree(pageCap, boundary, Split::X);
-    cout << "Bulkloading QuadTree..." << endl;
-    index.bulkload(dataFile, limit);
-    /* double hTreeCreationTime =
-        duration_cast<microseconds>(high_resolution_clock::now() - start).count();
-    log << "QuadTree Creation Time: " << hTreeCreationTime << endl; */
+    if constexpr (BULKLOAD) {
+        cout << "Bulkloading QuadTree..." << endl;
+        index.bulkload(dataFile, 1e7);
+    }
     log << "Page Capacity: " << pageCap << endl;
-    /* array<uint, 2> info;
-    float indexSize = index->size(info);
-    log << "QuadTree size in MB: " << float(indexSize / 1e6) << endl;
-    log << "No. of directories: " << info[0] << endl;
-    log << "No. of pages: " << info[1] << endl; */
 
-    cout << "---Evaluation--- " << endl;
-    evaluate(&index, queryFile, logFile);
-    // index.snapshot();
+    if constexpr (EVAL) {
+        cout << "---Evaluation--- " << endl;
+        evaluate(&index, queryFile, logFile);
+    }
+    if constexpr (SNAPSHOT)
+        index.snapshot();
     return 0;
 }

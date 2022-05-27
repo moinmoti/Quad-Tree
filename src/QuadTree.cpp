@@ -84,24 +84,28 @@ Info QuadTree::kNNQuery(Point p, uint k) {
             break;
     }
 
-    /* double sqrDist;
-    if (k == 32) {
-        while (!knnEnts.empty()) {
-            Entry pt = knnEnts.top().pt;
-            sqrDist = knnEnts.top().dist;
-            knnEnts.pop();
-            trace(pt.id, sqrDist);
+    if constexpr (LOG) {
+        double sqrDist;
+        if (k == 32) {
+            while (!knnEnts.empty()) {
+                Entry pt = knnEnts.top().pt;
+                sqrDist = knnEnts.top().dist;
+                knnEnts.pop();
+                trace(pt.id, sqrDist);
+            }
+            cerr << endl;
         }
-        cerr << endl;
-    } */
+    }
     return info;
 }
 
 Info QuadTree::rangeQuery(Rect query) {
     Info info;
     info.cost = root->range(info.output, query);
-    /* int pointCount = info.output;
-    trace(pointCount); */
+    if constexpr (LOG) {
+        int pointCount = info.output;
+        trace(pointCount);
+    }
     return info;
 }
 
