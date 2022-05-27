@@ -129,7 +129,7 @@ void QuadTree::snapshot() const {
         splitStr = "Cross";
     else
         splitStr = "Invalid";
-    ofstream ofs(splitStr + "-QuadTree.csv");
+    ofstream ofs("Snapshots/" + splitStr + "-QuadTree.csv");
     root->snapshot(ofs);
     ofs.close();
 }

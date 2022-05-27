@@ -1,19 +1,18 @@
 # CMake Entries
 build
 compile_commands.json
-KDBTree
 
 # Other
 Experiments
+Queries
 Snapshots
-Data
 *._*
 *DS_Store*
-*.dat
-*.idx
+.clangd
 *.csv
 *.png
 *.err
 *.json
 .python-version
+dataFile.txt
 Index

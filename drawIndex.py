@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 height = 0
 nodes = []
 tolerance = []
-with open("Snapshots/Waffle.csv") as f:
+with open("Snapshots/QuadTree.csv") as f:
     for i, line in enumerate(f):
         if int(line.split(",")[0]) == height:
             nodes.append(
@@ -91,4 +91,4 @@ fig.update_layout(
     font_size=6,
     plot_bgcolor="white",
 )
-fig.write_image(file="Snapshots/Waffle.pdf")
+fig.write_image(file="Snapshots/QuadTree.pdf")
