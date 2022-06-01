@@ -167,9 +167,8 @@ int main(int argCount, char **args) {
     Rect boundary{-180.0, -90.0, 180.0, 90.0};
     QuadTree index = QuadTree(PAGECAP, boundary, Split::X);
     if constexpr (BULKLOAD) {
-        long limit = 1e7; // Limits the number of data points bulk loaded.
         cout << "Bulkloading QuadTree..." << endl;
-        index.bulkload(dataFile, limit);
+        index.bulkload(dataFile, BLL);
     }
     log << "Page Capacity: " << PAGECAP << endl;
 
