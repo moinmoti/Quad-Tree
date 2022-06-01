@@ -1,6 +1,6 @@
-# KDB-Tree
+# Quad-Tree
 
-This is an implementation of the KDB-Tree data structure in C++.
+This is an implementation of the Quad-Tree data structure in C++.
 
 [[_TOC_]]
 
@@ -34,14 +34,13 @@ ln -s build/compile_commands.json .
 
 ## Configuration
 
-The project configuration lies in `include/config.h`. The options are explained in the comments.
+The project configuration lies in `include/config.hpp`. The options are explained in the comments.
 ```cpp
 constexpr bool BULKLOAD = true; // Set it to true if bulk loading the data set, and false otherwise.
 constexpr bool EVAL = true; // Set it to true for execute the operation file.
 constexpr bool DEBUG = false; // Set it to true for debugging query results.
 constexpr bool SNAPSHOT = false; // Set it to true for creating a snapshot of the index.
 
-constexpr unsigned int FANOUT = 204; // Set the fanout here.
 constexpr unsigned int PAGECAP = 204; // Set the page capacity here.
 ```
 
@@ -118,7 +117,7 @@ Make sure to enable `BULKLOAD` in the config file before executing this script.
 
 ## Remarks
 
-The program runs fine for benchmarking purposes, but may undergo refactoring to improve overall readability and code aesthetics. Users are advised to clone the master branch for the best version of the program. Follow this [link](https://gitlab.com/moinmoti/kdbtree) to access the repository.
+The program runs fine for benchmarking purposes, but may undergo refactoring to improve overall readability and code aesthetics. Users are advised to clone the master branch for the best version of the program. Follow this [link](https://gitlab.com/moinmoti/quadtree) to access the repository.
 
 ## Contact
 
