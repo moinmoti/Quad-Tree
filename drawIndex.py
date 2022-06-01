@@ -2,8 +2,7 @@ import plotly.graph_objects as go
 
 height = 0
 nodes = []
-tolerance = []
-with open("Snapshots/QuadTree.csv") as f:
+with open("Index.csv") as f:
     for i, line in enumerate(f):
         if int(line.split(",")[0]) == height:
             nodes.append(
@@ -55,38 +54,13 @@ for n in nodes:
 
 numNodes = len(nodes)
 avgLen = perimeter / numNodes
-avgCardinality = 1e7 / numNodes
 print(
-    f"Total Number of Nodes: {numNodes}\nAverage Perimeter: {avgLen:.2f}\nAverage Cardinality: {avgCardinality:.2f}"
+    f"Total Number of Nodes: {numNodes}\nAverage Perimeter: {avgLen:.2f}"
 )
-
-""" fig.add_trace(
-    go.Scatter(
-        x=[None],
-        y=[None],
-        mode="markers",
-        marker=dict(
-            cmin=0,
-            cmax=1,
-            colorscale=[[0, "rgba(255,143,0,0)"], [1, "rgba(255,143,0,1)"]],
-            showscale=True,
-            colorbar=dict(
-                title="Node tolerance",
-                tickvals=[0, meanTol, 1],
-                ticktext=[
-                    str(minTol) + " (Min)",
-                    str(meanTol) + " (Mean)",
-                    str(maxTol) + " (Max)",
-                ],
-                ticks="outside",
-            ),
-        ),
-    )
-) """
 
 fig.update_layout(
     showlegend=False,
     plot_bgcolor="white",
     margin=dict(l=0, r=0, t=0, b=0),
 )
-fig.write_image(file="Snapshots/QuadTree.png")
+fig.write_image(file="Index.png")

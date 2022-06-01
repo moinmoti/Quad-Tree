@@ -84,7 +84,7 @@ Info QuadTree::kNNQuery(Point p, uint k) {
             break;
     }
 
-    if constexpr (LOG) {
+    if constexpr (DEBUG) {
         double sqrDist;
         if (k == 32) {
             while (!knnEnts.empty()) {
@@ -102,7 +102,7 @@ Info QuadTree::kNNQuery(Point p, uint k) {
 Info QuadTree::rangeQuery(Rect query) {
     Info info;
     info.cost = root->range(info.output, query);
-    if constexpr (LOG) {
+    if constexpr (DEBUG) {
         int pointCount = info.output;
         trace(pointCount);
     }
@@ -115,21 +115,7 @@ uint QuadTree::size(array<uint, 2> &stats) const {
 }
 
 void QuadTree::snapshot() const {
-    string splitStr;
-    Split usedType = Page::split;
-    if (usedType == X)
-        splitStr = "X";
-    else if (usedType == Y)
-        splitStr = "Y";
-    else if (usedType == Orientation)
-        splitStr = "Orientation";
-    else if (usedType == Center)
-        splitStr = "Center";
-    else if (usedType == Cross)
-        splitStr = "Cross";
-    else
-        splitStr = "Invalid";
-    ofstream ofs("Snapshots/" + splitStr + "-QuadTree.csv");
+    ofstream ofs("Index.csv");
     root->snapshot(ofs);
     ofs.close();
 }

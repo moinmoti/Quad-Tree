@@ -270,7 +270,7 @@ array<Node *, 4> Page::partition(uint &writes) {
 }
 
 uint Page::range(uint &count, Rect query) const {
-    if constexpr (LOG) {
+    if constexpr (DEBUG) {
         if (inside(query))
             count += entries.size();
         else {

@@ -53,14 +53,14 @@ void rangeQuery(tuple<char, vector<float>, float> q, QuadTree *index, Stats &sta
     stats.range[rs].count++;
 }
 
-void evaluate(QuadTree *index, string queryFile, string logFile) {
+void evaluate(QuadTree *index, string opFile, string logFile) {
     Stats stats;
     bool canQuery = false;
     auto roundit = [](float val, int d = 2) { return round(val * pow(10, d)) / pow(10, d); };
 
-    cout << "Begin Querying " << queryFile << endl;
+    cout << "Begin Querying " << opFile << endl;
     string line;
-    ifstream file(queryFile);
+    ifstream file(opFile);
     if (file.is_open()) {
         // getline(file, line); // Skip the header line
         while (getline(file, line)) {
@@ -144,35 +144,39 @@ void evaluate(QuadTree *index, string queryFile, string logFile) {
 }
 
 int main(int argCount, char **args) {
-    map<string, string> config;
-    string projectPath = string(args[1]);
-    string queryType = string(args[2]);
-    int pageCap = stoi(string(args[3]));
-    string sign = "-" + to_string(pageCap);
+    string dataFile, opFile;
+    if constexpr (BULKLOAD) {
+        if (argCount != 3) {
+            cerr << "Error: Incorrect usage, please refer to the README" << endl;
+            return 0;
+        }
+        dataFile = string(args[1]);
+        opFile = string(args[2]);
+    } else {
+        if (argCount != 2) {
+            cerr << "Error: Incorrect usage, please refer to the README" << endl;
+            return 0;
+        }
+        opFile = string(args[1]);
+    }
 
-    string expPath = projectPath + "/Experiments/";
-    string prefix = expPath + queryType + "/";
-    string queryFile = projectPath + "/Queries/" + queryType + ".txt";
-    string dataFile = projectPath + "/dataFile.txt";
-
-    cout << "---Generation--- " << endl;
-
-    string logFile = prefix + "log" + sign + ".txt";
+    string logFile = "log.txt";
     ofstream log(logFile);
     if (!log.is_open())
         cout << "Unable to open log.txt";
     cout << "Defining QuadTree..." << endl;
     Rect boundary{-180.0, -90.0, 180.0, 90.0};
-    QuadTree index = QuadTree(pageCap, boundary, Split::X);
+    QuadTree index = QuadTree(PAGECAP, boundary, Split::X);
     if constexpr (BULKLOAD) {
+        long limit = 1e7; // Limits the number of data points bulk loaded.
         cout << "Bulkloading QuadTree..." << endl;
-        index.bulkload(dataFile, 1e7);
+        index.bulkload(dataFile, limit);
     }
-    log << "Page Capacity: " << pageCap << endl;
+    log << "Page Capacity: " << PAGECAP << endl;
 
     if constexpr (EVAL) {
         cout << "---Evaluation--- " << endl;
-        evaluate(&index, queryFile, logFile);
+        evaluate(&index, opFile, logFile);
     }
     if constexpr (SNAPSHOT)
         index.snapshot();

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "config.hpp"
+
 #include <algorithm>
 #include <array>
 #include <bitset>
@@ -37,11 +39,6 @@ void __f(const char *names, Arg1 &&arg1, Args &&... args) {
 
 #define all(container) container.begin(), container.end()
 #define remove(container, element) container.erase(find(all(container), element))
-
-constexpr bool BULKLOAD = true;
-constexpr bool EVAL = true;
-constexpr bool LOG = false;
-constexpr bool SNAPSHOT = true;
 
 constexpr uint D = 2;
 using Rect = array<float, 2*D>;
